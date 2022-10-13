@@ -63,7 +63,7 @@ resource "azurerm_linux_virtual_machine" "Linux-1" {
   name                = "Linux-1"
   resource_group_name   = azurerm_resource_group.first_tf_rg.name
   location            = var.tf_location
-  size                = "Standard_F2"
+  size                = "Standard_B1s"
   disable_password_authentication = "false"
   admin_username      = "adminuser"
   admin_password = "3m3rs0nF1t1pald!"
