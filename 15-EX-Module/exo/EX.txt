@@ -1,0 +1,158 @@
+
+
+
+
+#Shortcuts for Powershell
+
+$SourceFilePath = "%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe"
+$ShortcutPath = "$($env:USERPROFILE)\Desktop\PowerShell.lnk"
+$WScriptObj = New-Object -ComObject ("WScript.Shell")
+$shortcut = $WscriptObj.CreateShortcut($ShortcutPath)
+$shortcut.TargetPath = $SourceFilePath
+$shortcut.Save()
+
+
+#SHOW FILE EXTENTIONS SCRIPT:
+Push-Location
+    Set-Location HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+    Set-ItemProperty . HideFileExt "0"
+    Pop-Location
+    Stop-Process -processName: Explorer -force # This will restart the Explorer service to make this work.
+
+#Activate Hidden Files
+$Path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+$Value = 1
+Set-ItemProperty -Path $Path -Name Hidden -Value $Value
+$Shell = New-Object -ComObject Shell.Application
+$Shell.Windows() | ForEach-Object { $_.Refresh() }
+
+#Create the share
+New-Item 'C:\EXCHANGE' -ItemType Directory
+New-SMBShare -Name EXCHANGE -Path "C:\EXCHANGE" -FullAccess "Domain Admins" -ReadAccess "Users"
+
+
+#script to install Exchange - DOWNLOAD
+##################################
+$url = "https://raw.githubusercontent.com/michelderooij/Install-Exchange15/master/Install-Exchange15.ps1"
+$output = "C:\EXCHANGE\Install-Exchange15.ps1"
+$start_time = Get-Date
+
+Import-Module BitsTransfer
+
+Start-BitsTransfer -Source $url -Destination $output
+
+
+#script to isnall EXCHANGE - EXECUTION
+######################################
+
+$username = "CONTOSO\azureuser"
+$password = ConvertTo-SecureString "1" -AsPlainText -Force
+$psCred = New-Object System.Management.Automation.PSCredential -ArgumentList ($username, $password)
+
+cd C:\EXCHANGE\
+
+#$Cred=Get-Credential
+.\Install-Exchange15.ps1 -Organization f0r3 -InstallMailbox -MDBDBPath C:\MailboxData\MDB1\DB -MDBLogPath C:\MailboxData\MDB1\Log -MDBName MDB1 -InstallPath C:\Install -AutoPilot -Credentials $psCred -SourcePath '\\winvm2\EXCHANGE\EXO.iso' -Verbose
+
+
+
+
+
+EXCHANGE Congiguration:
+#######################
+#######################
+
+#ACCEPTED DOMAIN
+New-AcceptedDomain -Name "f0r3.dnsabr.com" -DomainName "f0r3.dnsabr.com" -DomainType Authoritative | Set-AcceptedDomain -MakeDefault $true
+
+#MAIL ADDRESS POLICY
+New-EmailAddressPolicy -Name "my_policy" -IncludedRecipients "AllRecipients" -Priority "1" -EnabledEmailAddressTemplates "SMTP:%g.%s@f0r3.dnsabr.com"
+Update-EmailAddressPolicy -Identity "my_policy"
+
+
+#######VIRTUAL DIRECTORIES ########
+
+$Server_name = "winvm2"
+$FQDN = "mail.f0r3.dnsabr.com"
+$auto = "f0r3.dnsabr.com"
+
+#configuring OWA 
+Get-OWAVirtualDirectory -Server $Server_name | Set-OWAVirtualDirectory -InternalURL "https://$($FQDN)/owa" -ExternalURL "https://$($FQDN)/owa"
+
+#configuring ECP
+Get-ECPVirtualDirectory -Server $Server_name | Set-ECPVirtualDirectory -InternalURL "https://$($FQDN)/ecp" -ExternalURL "https://$($FQDN)/ecp"
+
+#OfflineAddressBook
+Get-OABVirtualDirectory -Server $Server_name | Set-OABVirtualDirectory -InternalURL "https://$($FQDN)/oab" -ExternalURL "https://$($FQDN)/oab"
+
+#ActiveSync
+Get-ActiveSyncVirtualDirectory -Server $Server_name | Set-ActiveSyncVirtualDirectory -InternalURL "https://$($FQDN)/Microsoft-Server-ActiveSync" -ExternalURL "https://$($FQDN)/Microsoft-Server-ActiveSync"
+
+#EWS
+Get-WebServicesVirtualDirectory -Server $Server_name | Set-WebServicesVirtualDirectory -InternalURL "https://$($FQDN)/EWS/Exchange.asmx" -ExternalURL "https://$($FQDN)/EWS/Exchange.asmx"
+
+#MAPI
+Get-MapiVirtualDirectory -Server $Server_name | Set-MapiVirtualDirectory -InternalURL "https://$($FQDN)/mapi" -ExternalURL https://$($FQDN)/mapi -IISAuthenticationMethods Negotiate,Basic,Ntlm
+
+#autodiscover
+Set-ClientAccessService -Identity $Server_name -AutoDiscoverServiceInternalUri https://autodiscover.$($auto)/Autodiscover/Autodiscover.xml
+
+Get-OutlookAnywhere -Server $Server_name | Set-OutlookAnywhere -ExternalHostname $FQDN -InternalHostname $FQDN -ExternalClientsRequireSsl $true -InternalClientsRequireSsl $true -ExternalClientAuthenticationMethod Negotiate -IISAuthenticationMethods negotiate,basic,NTLM -InternalClientAuthenticationMethod NTLM
+
+$OWA = Get-OWAVirtualDirectory -Server $Server_name -AdPropertiesOnly | Select InternalURL,ExternalURL
+$ECP = Get-ECPVirtualDirectory -Server $Server_name -AdPropertiesOnly | Select InternalURL,ExternalURL
+$OAB = Get-OABVirtualDirectory -Server $Server_name -AdPropertiesOnly | Select InternalURL,ExternalURL
+$EAS = Get-ActiveSyncVirtualDirectory -Server $Server_name -AdPropertiesOnly | Select InternalURL,ExternalURL
+$MAPI = Get-MAPIVirtualDirectory -Server $Server_name -AdPropertiesOnly | Select InternalURL,ExternalURL
+
+$OWA,$ECP,$OAB,$EAS,$MAPI | ft
+Get-ClientAccessService | fl AutoDiscoverServiceInternalUri
+
+
+
+#### CREATER TEST MAILBOXES ######
+$suffix = (Get-ADForest).upnsuffixes
+write-host "UPN_Suffix:$suffix"
+$val = [int](Read-Host "Enter number of test users")
+$count_of_users = 0
+$name_of_user = Read-Host "Name of test user"
+$db = (Get-MailboxDatabase).name
+while($count_of_users -ne $val)
+
+{
+    $count_of_users++
+    
+    $created_user = $name_of_user + $count_of_users.ToString()
+   
+    $pwd1 = ConvertTo-SecureString "1" -AsPlainText -Force
+    $upn_suffix = $created_user + '@' +  $suffix
+    New-Mailbox `
+        -Name $created_user `
+        -Password $pwd1 `
+	-UserPrincipalName $upn_suffix `
+        -Database $db `
+        -OrganizationalUnit Users
+         Write-Host $created_user "created"
+}
+
+
+
+#SendConnector with SmartHost
+
+$username = "sh0pa1989@abv.bg"
+$password = ConvertTo-SecureString "WYkwLGHphN4v673Q" -AsPlainText -Force
+$psCred = New-Object System.Management.Automation.PSCredential -ArgumentList ($username, $password)
+New-SendConnector -Name "send_mail" -AddressSpaces * -AuthenticationCredential $psCred -DNSRoutingEnabled $false -SmartHosts "smtp-relay.sendinblue.com" -SmartHostAuthMechanism BasicAuth -Port 587
+
+#### Import the certificate in exchange###
+Import-ExchangeCertificate -Server winvm2 -FileData ([System.IO.File]::ReadAllBytes('\\winvm2\EXCHANGE\f0r3.pfx')) -Password (Get-Credential).password
+
+Enable-ExchangeCertificate -Thumbprint 3C46FB021B5543A4F1209EC23AD897664E3DE9D8 -Services IIS,SMTP,IMAP
+invoke-command -scriptblock {iisreset}
+
+
+
+#connector for relaying mail from Office 365
+New-SendConnector "TO EOP" -AddressSpaces * -CloudServicesMailEnabled $true -Fqdn "mail.secondf
+orest.cloudns.ph" -RequireTLS $true -SmartHosts secondforest-cloudns-ph.mail.protection.outlook.com -TlsAuthLevel certif
+icatevalidation

@@ -1,25 +1,26 @@
 variable rg_name {
   type        = string
-  default     = "g1"
+  default     = ""
   description = "Location for the resources"
-}
-
-variable tf_location {
-  type        = string
-  default     = "eastus"
-  description = "Location for resources"
 }
 
 variable vn_name {
   type        = string
-  default     = "first_tf_network"
+  default     = ""
   description = "Name of VN used"
 }
 
-variable subnet_name {
+variable subnet_id {
   type        = string
-  default     = "first_tf_subnet"
+  default     = ""
   description = "Name for the subnet"
 }
+
+variable nsg_id {
+  type        = string
+  default     = ""
+  description = "description"
+}
+
 
 

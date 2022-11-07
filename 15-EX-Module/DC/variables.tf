@@ -1,6 +1,6 @@
 variable rg_name {
   type        = string
-  default     = "g1"
+  default     = "rg2"
   description = "Location for the resources"
 }
 
@@ -22,13 +22,4 @@ variable subnet_name {
   description = "Name for the subnet"
 }
 
-variable node_count {
-  type        = number
-  default     = 2
-  description = "number of VMs"
-}
-
-variable "vm_count" {
-  default = 1
-}
 

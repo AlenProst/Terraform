@@ -66,7 +66,7 @@ resource "azurerm_windows_virtual_machine" "winvm1" {
   name                  = "winvm1"
   network_interface_ids = [azurerm_network_interface.aznetworkinterface.id]
   resource_group_name   = azurerm_resource_group.first_tf_rg.name
-  size                  = "standard_f2"
+  size                  = "Standard_B2ms"
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"

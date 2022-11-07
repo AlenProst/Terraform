@@ -1,0 +1,39 @@
+#removing complexity
+########################################
+$id = (Get-ADDomain).DistinguishedName
+Set-ADDefaultDomainPasswordPolicy `
+-Identity $id `
+-ComplexityEnabled $False `
+-MinPasswordLength 1 `
+-PasswordHistoryCount 0 `
+-MinPasswordAge 00.00:00:00 `
+-MaxPasswordAge 00.00:00:00
+
+gpupdate /force
+
+##### AD my domain ######
+Get-ADForest | Set-ADForest -UPNSuffixes @{add="f0r3.dnsabr.com"}
+
+######## Creating user for the installation ####
+
+$suffix = (Get-ADForest).upnsuffixes
+$pwd1 = ConvertTo-SecureString "1" -AsPlainText -Force
+$name = "u1"
+$upn_suffix = $name + $suffix
+
+New-ADUser -Name $name -AccountPassword $pwd1 -UserPrincipalName $upn_suffix -Enabled $True
+
+Add-ADGroupMember -Identity "Enterprise Admins" -Members u1
+Add-ADGroupMember -Identity "Domain Admins" -Members u1
+
+#######Adding a new Primary zone########
+$name_zone = "f0r3.dnsabr.com"
+
+Get-Module DNSServer
+
+Add-DnsServerPrimaryZone -Name $name_zone -ReplicationScope "Forest" –PassThru
+
+Add-DnsServerResourceRecordCName -ZoneName $name_zone -Name mail -HostNameAlias winvm2.contoso.local
+Add-DnsServerResourceRecordCName -ZoneName $name_zone -Name autodiscover -HostNameAlias winvm2.contoso.local
+
+

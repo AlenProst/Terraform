@@ -31,8 +31,17 @@ else
 	echo "Asterics are already shown."
 fi
 
+#change password for adminuser
 yes 1 | sudo passwd adminuser
 
 echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG28W671DAnv0nxBaMb+zkwF21E2eK8xV2LsZ6RhWLv7 ansible" > authorized_keys
 echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILnSY/3nq8U4vGqFFxVWTui3Hvn92F+9sN7Sh43nqDYr my_key" >> authorized_keys
 mv authorized_keys /home/adminuser/.ssh
+
+#add ivansto as a user to sudoers
+adduser ivansto --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password
+echo "ivansto:1" | chpasswd
+echo 'ivansto  ALL=(ALL:ALL) ALL' >> /etc/sudoers
+
+mkdir /home/ivansto/.ssh
+cp /home/adminuser/.ssh/authorized_keys /home/ivansto/.ssh/authorized_keys
