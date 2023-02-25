@@ -30,6 +30,17 @@ $Shell.Windows() | ForEach-Object { $_.Refresh() }
 New-Item 'C:\EXCHANGE' -ItemType Directory
 New-SMBShare -Name EXCHANGE -Path "C:\EXCHANGE" -FullAccess "Domain Admins" -ReadAccess "Users"
 
+#Download ISO
+$url = "https://download.microsoft.com/download/b/c/7/bc766694-8398-4258-8e1e-ce4ddb9b3f7d/ExchangeServer2019-x64-CU12.ISO"
+$output = "C:\EXCHANGE\EXO.iso"
+$start_time = Get-Date
+
+Import-Module BitsTransfer
+
+Start-BitsTransfer -Source $url -Destination $output
+
+Write-Output "Time taken: $((Get-Date).Subtract($start_time).Seconds) second(s)"
+
 
 #script to install Exchange - DOWNLOAD
 ##################################
